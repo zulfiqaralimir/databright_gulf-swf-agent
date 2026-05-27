@@ -1,3 +1,12 @@
+---
+title: Gulf SWF Filing Intelligence API
+emoji: 🏦
+colorFrom: green
+colorTo: blue
+sdk: docker
+pinned: false
+---
+
 # Gulf SWF Filing Intelligence Agent
 
 > Real-time SC 13D/13G monitoring for Gulf Sovereign Wealth Funds — powered by Bright Data MCP + Gemini 2.0 Flash
