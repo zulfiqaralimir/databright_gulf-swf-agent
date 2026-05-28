@@ -13,7 +13,7 @@ sys.stderr.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from dotenv import load_dotenv
-load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '.env'))
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '.env'), override=True)
 
 from database import get_db
 from intelligence import generate_filing_intelligence
@@ -71,7 +71,7 @@ def regenerate():
             success += 1
 
         # Always throttle — applies to both success and failure
-        time.sleep(7)
+        time.sleep(90)
 
     print("\n" + "=" * 60)
     print(f"Done. Updated: {success} | Failed: {failed} | Total: {total}")

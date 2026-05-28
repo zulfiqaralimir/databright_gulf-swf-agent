@@ -10,18 +10,23 @@ import time
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-load_dotenv()
+load_dotenv(override=True)
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Primary model; fallback to 1.5-flash if quota is exhausted on 2.0-flash
 _llm_primary = ChatGoogleGenerativeAI(
+    model="gemini-2.0-flash",
+    google_api_key=GEMINI_API_KEY,
+    temperature=0.3,
+    max_retries=0,
+)
+_llm_fallback1 = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
     google_api_key=GEMINI_API_KEY,
     temperature=0.3,
     max_retries=0,
 )
-_llm_fallback = ChatGoogleGenerativeAI(
+_llm_fallback2 = ChatGoogleGenerativeAI(
     model="gemini-2.0-flash-lite",
     google_api_key=GEMINI_API_KEY,
     temperature=0.3,
@@ -65,28 +70,27 @@ _FALLBACK_INTEL = {
 }
 
 
-def _call_llm(prompt: str, max_retries: int = 1) -> str:
-    """Try primary model then fallback; retry on 429; never raise."""
-    models = [("gemini-2.5-flash", _llm_primary), ("gemini-2.0-flash-lite", _llm_fallback)]
-    delay = 15
+def _call_llm(prompt: str) -> str:
+    """Try each model once; on 429 wait 20s before moving to next model."""
+    models = [
+        ("gemini-2.5-flash", _llm_fallback1),
+        ("gemini-2.0-flash", _llm_primary),
+        ("gemini-2.0-flash-lite", _llm_fallback2),
+    ]
 
     for model_name, llm in models:
-        for attempt in range(max_retries):
-            try:
-                return llm.invoke(prompt).content
-            except Exception as e:
-                err = str(e)
-                if "429" in err or "RESOURCE_EXHAUSTED" in err:
-                    if attempt < max_retries - 1:
-                        print(f"    [Gemini 429 on {model_name} — waiting {delay}s, retry {attempt + 2}/{max_retries}]")
-                        time.sleep(delay)
-                        delay *= 2
-                    continue
-                # Any other error (404, 403, etc.) — skip this model entirely
-                print(f"    [Gemini {model_name} error: {err[:120]}]")
-                break
-        print(f"    [Switching from {model_name} to next model]")
-        delay = 15
+        try:
+            result = llm.invoke(prompt).content
+            if model_name != "gemini-2.0-flash":
+                print(f"    [used {model_name}]")
+            return result
+        except Exception as e:
+            err = str(e)
+            if "429" in err or "RESOURCE_EXHAUSTED" in err:
+                print(f"    [429 on {model_name} — waiting 20s, trying next model]")
+                time.sleep(20)
+            else:
+                print(f"    [{model_name} error: {err[:120]}, trying next model]")
 
     return None  # All models failed — caller uses fallback intelligence
 
